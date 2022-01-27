@@ -121,11 +121,19 @@ class DLM_Gutenberg {
 		{
 			$template_handler->get_template_part( 'content-download', $template, '', array( 'dlm_download' => $download ) );
 		}
-		$output = ob_get_clean();
+		$download_id = $download->get_id();
+		$output = "<div class='download-container-$download_id'>";
+		$output .= ob_get_clean();
+		$output .= '<div class="progress-bar-container" style="display:none; width:100%">';
+		$output .= '<div class="progress-bar" style="background:green;height:25px;"></div>';
+		$output .= '<p class="progress-bar-percent">50%</p>';
+		$output .= '<a class="download-complete" style="display:none">50%</a>';
+		$output .= '</div>';
+		$output .= '</div>';
 
-		if ( isset( $attributes['autop'] ) && $attributes['autop'] == "1" ) {
-			$output = wpautop( $output );
-		}
+		// if ( isset( $attributes['autop'] ) && $attributes['autop'] == "1" ) {
+		// 	$output = wpautop( $output );
+		// }
 
 		return $output;
 	}

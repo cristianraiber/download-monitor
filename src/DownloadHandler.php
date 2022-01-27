@@ -29,36 +29,7 @@ class DLM_Download_Handler {
 		add_action( 'parse_request', array( $this, 'handler' ), 0 );
 		add_filter( 'dlm_can_download', array( $this, 'check_members_only' ), 10, 2 );
 		add_filter( 'dlm_can_download', array( $this, 'check_blacklist' ), 10, 2 );
-	}
-
-	/**
-	 * Check members only (hooked into dlm_can_download) checks if the download is members only and enfoces log in.
-	 *
-	 * Other plugins can use the 'dlm_can_download' filter directly to change access rights.
-	 *
-	 * @access public
-	 *
-	 * @param boolean $can_download
-	 * @param mixed $download
-	 *
-	 * @return boolean
-	 */
-	public function check_members_only( $can_download, $download ) {
-
-		// Check if download is a 'members only' download
-		if ( false !== $can_download && $download->is_members_only() ) {
-
-			// Check if user is logged in
-			if ( ! is_user_logged_in() ) {
-				$can_download = false;
-			} // Check if it's a multisite and if user is member of blog
-			else if ( is_multisite() && ! is_user_member_of_blog( get_current_user_id(), get_current_blog_id() ) ) {
-				$can_download = false;
-			}
-
-		}
-
-		return $can_download;
+		add_action('wp_ajax_log_download', array( $this, 'log_download' ));
 	}
 
 	/**
@@ -170,6 +141,36 @@ class DLM_Download_Handler {
 
 			}
 
+
+		}
+
+		return $can_download;
+	}
+
+	/**
+	 * Check members only (hooked into dlm_can_download) checks if the download is members only and enfoces log in.
+	 *
+	 * Other plugins can use the 'dlm_can_download' filter directly to change access rights.
+	 *
+	 * @access public
+	 *
+	 * @param boolean $can_download
+	 * @param mixed $download
+	 *
+	 * @return boolean
+	 */
+	public function check_members_only( $can_download, $download ) {
+
+		// Check if download is a 'members only' download
+		if ( false !== $can_download && $download->is_members_only() ) {
+
+			// Check if user is logged in
+			if ( ! is_user_logged_in() ) {
+				$can_download = false;
+			} // Check if it's a multisite and if user is member of blog
+			else if ( is_multisite() && ! is_user_member_of_blog( get_current_user_id(), get_current_blog_id() ) ) {
+				$can_download = false;
+			}
 
 		}
 
@@ -317,7 +318,12 @@ class DLM_Download_Handler {
 					wp_die( get_the_password_form( $download_id ) , esc_html__( 'Password Required', 'download-monitor' ) );
 				}
 
-				$this->trigger( $download );
+				if( isset( $_GET['ajax_download'] ) && $_GET['ajax_download'] ) {
+
+					$this->trigger_ajax( $download );
+				} else {
+					$this->trigger( $download );
+				}
 			} elseif ( $redirect = apply_filters( 'dlm_404_redirect', false ) ) {
 				wp_redirect( $redirect );
 			} else {
@@ -337,7 +343,7 @@ class DLM_Download_Handler {
 	 * @param DLM_Download $download
 	 * @param DLM_Download_Version $version
 	 */
-	private function log( $type, $status, $message, $download, $version ) {
+	private function log( $type, $status, $message, $download, $version, $log_id =0 ) {
 
 		// Logging object
 		$logging = new DLM_Logging();
@@ -348,7 +354,6 @@ class DLM_Download_Handler {
 			// set create_log to true
 			$create_log = true;
 
-			// check if requester downloaded this version before
 			if ( $logging->is_count_unique_ips_only() && true === $logging->has_ip_downloaded_version( $version ) ) {
 				$create_log = false;
 			}
@@ -356,22 +361,39 @@ class DLM_Download_Handler {
 			// check if we need to create the log
 			if ( $create_log ) {
 
-				// setup new log item object
-				$log_item = new DLM_Log_Item();
-				$log_item->set_user_id( absint( get_current_user_id() ) );
-				$log_item->set_user_ip( DLM_Utils::get_visitor_ip() );
-				$log_item->set_user_agent( DLM_Utils::get_visitor_ua() );
-				$log_item->set_download_id( absint( $download->get_id() ) );
-				$log_item->set_version_id( absint( $version->get_id() ) );
-				$log_item->set_version( $version->get_version() );
-				$log_item->set_download_date( new DateTime( current_time( 'mysql' ) ) );
-				$log_item->set_download_status( $status );
-				$log_item->set_download_status_message( $message );
+				if( $log_id > 0 ) {
+					$log_item = download_monitor()->service( 'log_item_repository' )->retrieve_single( $log_id );
+					$log_item->set_user_id( absint( get_current_user_id() ) );
+					$log_item->set_user_ip( DLM_Utils::get_visitor_ip() );
+					$log_item->set_user_agent( DLM_Utils::get_visitor_ua() );
+					$log_item->set_download_id( absint( $download->get_id() ) );
+					$log_item->set_version_id( absint( $version->get_id() ) );
+					$log_item->set_version( $version->get_version() );
+					$log_item->set_download_date( new DateTime( current_time( 'mysql' ) ) );
+					$log_item->set_download_status( $status );
+					$log_item->set_download_status_message( $message );
 
-				// persist log item
-				download_monitor()->service( 'log_item_repository' )->persist( $log_item );
+					download_monitor()->service( 'log_item_repository' )->persist( $log_item );
+				}else {
+					// setup new log item object
+					$log_item = new DLM_Log_Item();
+					$log_item->set_user_id( absint( get_current_user_id() ) );
+					$log_item->set_user_ip( DLM_Utils::get_visitor_ip() );
+					$log_item->set_user_agent( DLM_Utils::get_visitor_ua() );
+					$log_item->set_download_id( absint( $download->get_id() ) );
+					$log_item->set_version_id( absint( $version->get_id() ) );
+					$log_item->set_version( $version->get_version() );
+					$log_item->set_download_date( new DateTime( current_time( 'mysql' ) ) );
+					$log_item->set_download_status( $status );
+					$log_item->set_download_status_message( $message );
+
+					// persist log item
+					download_monitor()->service( 'log_item_repository' )->persist( $log_item );
+				}
+
+
+				return $log_item;
 			}
-
 		}
 
 	}
@@ -440,7 +462,7 @@ class DLM_Download_Handler {
 						}else{
 							$no_access_permalink = untrailingslashit( $no_access_permalink ) . '/download-id/' . $download->get_id() . '/';
 						}
-						
+
 						if ( ! $download->get_version()->is_latest() ) {
 							$no_access_permalink = add_query_arg( 'version', $download->get_version()->get_version(), $no_access_permalink );
 						}
@@ -461,36 +483,20 @@ class DLM_Download_Handler {
 			exit;
 		}
 
-		// check if user downloaded this version in the past minute
-		if ( false == DLM_Cookie_Manager::exists( $download ) ) {
+		// check if user downloaded this version in the past minute.
+		if ( DLM_Logging::is_download_window_enabled( $download ) ) {
 
-			// DLM Logging object
-			$logger = new DLM_Logging();
-
-			// bool if we need to increment download count
-			$increment_download_count = true;
-
-			// check if unique ips option is enabled and if so, if visitor already downloaded this file version
-			if ( $logger->is_logging_enabled() && $logger->is_count_unique_ips_only() && true === $logger->has_ip_downloaded_version( $version ) ) {
-				$increment_download_count = false;
-			}
-
-			// check if we need to increment the download count
-			if ( true === $increment_download_count ) {
-				// Increase download count
-				$version->increase_download_count();
-			}
-
-			// Trigger Download Action
+			// Trigger Download Action.
 			do_action( 'dlm_downloading', $download, $version, $file_path );
 
-			// Set cookie to prevent double logging
+			// Set cookie to prevent double logging.
 			DLM_Cookie_Manager::set_cookie( $download );
 		}
 
 		// Redirect to the file...
 		if ( $download->is_redirect_only() || apply_filters( 'dlm_do_not_force', false, $download, $version ) ) {
-			$this->log( 'download', 'redirected', __( 'Redirected to file', 'download-monitor' ), $download, $version );
+
+			$this->log( $download, $version );
 
 			// Ensure we have a valid URL, not a file path
 			$scheme = parse_url( get_option( 'home' ), PHP_URL_SCHEME );
@@ -505,33 +511,33 @@ class DLM_Download_Handler {
 		$file_path = apply_filters( 'dlm_file_path', $file_path, $remote_file, $download );
 
 		$this->download_headers( $file_path, $download, $version );
-		
+
         do_action( 'dlm_start_download_process', $download, $version, $file_path, $remote_file );
 
 		if ( get_option( 'dlm_xsendfile_enabled' ) ) {
 			if ( function_exists( 'apache_get_modules' ) && in_array( 'mod_xsendfile', apache_get_modules() ) ) {
 
-				$this->log( 'download', 'redirected', __( 'Redirected to file', 'download-monitor' ), $download, $version );
+				$this->log( $download, $version );
 
 				header( "X-Sendfile: $file_path" );
 				exit;
 
 			} elseif ( stristr( getenv( 'SERVER_SOFTWARE' ), 'lighttpd' ) ) {
 
-				$this->log( 'download', 'redirected', __( 'Redirected to file', 'download-monitor' ), $download, $version );
+				$this->log( $download, $version );
 
 				header( "X-LIGHTTPD-send-file: $file_path" );
 				exit;
 
 			} elseif ( stristr( getenv( 'SERVER_SOFTWARE' ), 'nginx' ) || stristr( getenv( 'SERVER_SOFTWARE' ), 'cherokee' ) ) {
 
-				$this->log( 'download', 'redirected', __( 'Redirected to file', 'download-monitor' ), $download, $version );
+				$this->log( $download, $version );
 
 				if ( isset( $_SERVER['DOCUMENT_ROOT'] ) ) {
 					// phpcs:ignore
 					$file_path = str_ireplace( $_SERVER['DOCUMENT_ROOT'], '', $file_path );
 				}
-				
+
 				header( "X-Accel-Redirect: /$file_path" );
 				exit;
 			}
@@ -564,12 +570,12 @@ class DLM_Download_Handler {
 		if ( $this->readfile_chunked( $file_path, $range ) ) {
 
 			// Complete!
-			$this->log( 'download', 'completed', '', $download, $version );
+			$this->log( $download, $version );
 
 		} elseif ( $remote_file ) {
 
-			// Redirect - we can't track if this completes or not
-			$this->log( 'download', 'redirected', __( 'Redirected to remote file.', 'download-monitor' ), $download, $version );
+			// Redirect - we can't track if this completes or not.
+			$this->log( $download, $version );
 
 			header( 'Location: ' . $file_path );
 
@@ -581,6 +587,187 @@ class DLM_Download_Handler {
 
 		exit;
 	}
+
+		/**
+	 * trigger function.
+	 *
+	 * @access private
+	 *
+	 * @param DLM_Download $download
+	 *
+	 * @return void
+	 */
+	private function trigger_ajax( $download ) {
+		// Download is triggered. First thing we do, send no cache headers.
+		$this->cache_headers();
+
+		/** @var DLM_Download_Version $version */
+		$version = $download->get_version();
+
+		/** @var array $file_paths */
+		$file_paths = $version->get_mirrors();
+
+		// Check if we got files in this version
+		if ( empty( $file_paths ) ) {
+			header( 'Status: 404 NoFilePaths, No file paths defined.' );
+			die();
+		}
+
+		// Get a random file (mirror)
+		$file_path = $file_paths[ array_rand( $file_paths ) ];
+
+		// Check if we actually got a path
+		if ( ! $file_path ) {
+			header( 'Status: 404 NoFilePaths,No file paths defined.' );
+			die();
+		}
+
+		// Check Access
+		if ( !apply_filters( 'dlm_can_download', true, $download, $version ) ) {
+			// Check if we need to redirect if visitor don't have access to file
+			if ( $redirect = apply_filters( 'dlm_access_denied_redirect', false ) ) {
+				header( "Status: 404 redirect,$redirect" );
+				die();
+			} else {
+
+				// get 'no access' page id
+				$no_access_page_id = get_option( 'dlm_no_access_page', 0 );
+
+				// check if a no access page is set
+				if ( $no_access_page_id > 0 ) {
+
+					// get permalink of no access page
+					$no_access_permalink = get_permalink( $no_access_page_id );
+
+					// check if we can find a permalink
+					if ( false !== $no_access_permalink ) {
+
+						//get wordpress permalink structure so we can build the url
+						$structure = get_option('permalink_structure', 0 );
+
+						// append download id to no access URL
+
+						if( '' == $structure || 0 == $structure ){
+							$no_access_permalink = add_query_arg( 'download-id', $download->get_id(), untrailingslashit( $no_access_permalink ) );
+						}else{
+							$no_access_permalink = untrailingslashit( $no_access_permalink ) . '/download-id/' . $download->get_id() . '/';
+						}
+
+						if ( ! $download->get_version()->is_latest() ) {
+							$no_access_permalink = add_query_arg( 'version', $download->get_version()->get_version(), $no_access_permalink );
+						}
+
+						// redirect to no access page
+						header( "Status: 404 redirect, $no_access_permalink" );
+						die();
+					}
+
+				}
+				header( "Status: 404 AccessDenied, You do not have permission to download this file." );
+				die();
+			}
+
+			exit;
+		}
+
+
+		// get extension from file path
+		$extension = pathinfo( $file_path, PATHINFO_EXTENSION );
+		$log_id = $this->log( 'download', 'incomplete', '', $download, $version );
+		$log_id = $log_id->get_id();
+		header( "extension: $extension" );
+		header( "log_id : $log_id");
+		// Redirect to the file...
+		if ( $download->is_redirect_only() || apply_filters( 'dlm_do_not_force', false, $download, $version ) ) {
+			$this->log( 'download', 'redirected', __( 'Redirected to file', 'download-monitor' ), $download, $version );
+
+			// Ensure we have a valid URL, not a file path
+			$scheme = parse_url( get_option( 'home' ), PHP_URL_SCHEME );
+			$file_path = str_replace( ABSPATH, site_url( '/', $scheme ), $file_path );
+
+			header( 'Location: ' . $file_path );
+			exit;
+		}
+
+		// Parse file path
+		list( $file_path, $remote_file ) = download_monitor()->service( 'file_manager' )->parse_file_path( $file_path );
+		$file_path = apply_filters( 'dlm_file_path', $file_path, $remote_file, $download );
+
+		$this->download_headers( $file_path, $download, $version );
+
+        do_action( 'dlm_start_download_process', $download, $version, $file_path, $remote_file );
+
+		if ( get_option( 'dlm_xsendfile_enabled' ) ) {
+			if ( function_exists( 'apache_get_modules' ) && in_array( 'mod_xsendfile', apache_get_modules() ) ) {
+
+				$this->log( 'download', 'redirected', __( 'Redirected to file', 'download-monitor' ), $download, $version );
+
+				header( "X-Sendfile: $file_path" );
+				exit;
+
+			} elseif ( stristr( getenv( 'SERVER_SOFTWARE' ), 'lighttpd' ) ) {
+
+				$this->log( 'download', 'redirected', __( 'Redirected to file', 'download-monitor' ), $download, $version );
+
+				header( "X-LIGHTTPD-send-file: $file_path" );
+				exit;
+
+			} elseif ( stristr( getenv( 'SERVER_SOFTWARE' ), 'nginx' ) || stristr( getenv( 'SERVER_SOFTWARE' ), 'cherokee' ) ) {
+
+				$this->log( 'download', 'redirected', __( 'Redirected to file', 'download-monitor' ), $download, $version );
+
+				if ( isset( $_SERVER['DOCUMENT_ROOT'] ) ) {
+					// phpcs:ignore
+					$file_path = str_ireplace( $_SERVER['DOCUMENT_ROOT'], '', $file_path );
+				}
+
+				header( "X-Accel-Redirect: /$file_path" );
+				exit;
+			}
+		}
+
+		// multipart-download and download resuming support - http://www.phpgang.com/force-to-download-a-file-in-php_112.html
+		if ( isset( $_SERVER['HTTP_RANGE'] ) && $version->get_filesize() ) {
+			// phpcs:ignore
+			list( $a, $range ) = explode( "=", $_SERVER['HTTP_RANGE'], 2 );
+			list( $range ) = explode( ",", $range, 2 );
+			list( $range, $range_end ) = explode( "-", $range );
+			$range = intval( $range );
+
+			if ( ! $range_end ) {
+				$range_end = $version->get_filesize() - 1;
+			} else {
+				$range_end = intval( $range_end );
+			}
+
+			$new_length = $range_end - $range;
+
+			header( "HTTP/1.1 206 Partial Content" );
+			header( "Content-Length: $new_length" );
+			header( "Content-Range: bytes {$range}-{$range_end}/{$version->get_filesize()}" );
+
+		} else {
+			$range = false;
+		}
+
+		if ( $this->readfile_chunked( $file_path, $range ) ) {
+			header( 'log_status: complete' );
+
+		} elseif ( $remote_file ) {
+			header( 'log_status : redirected');
+			// Redirect - we can't track if this completes or not
+			// $this->log( 'download', 'redirected', __( 'Redirected to remote file.', 'download-monitor' ), $download, $version );
+			header( 'Location: ' . $file_path );
+		} else {
+			header( 'log_status : failed');
+			// $this->log( 'download', 'failed', __( 'File not found.', 'download-monitor' ), $download, $version );
+
+			wp_die( esc_html__( 'File not found.', 'download-monitor' ) . ' <a href="' . esc_url( home_url() ) . '">' . esc_html__( 'Go to homepage &rarr;', 'download-monitor' ) . '</a>', esc_html__( 'Download Error', 'download-monitor' ), array( 'response' => 404 ) );
+		}
+
+		exit;
+	}
+
 
 	/**
 	 * Send cache headers to browser. No cache pelase.
@@ -717,4 +904,27 @@ class DLM_Download_Handler {
 		return $status;
 	}
 
+	public function log_download() {
+		$download_id = $_POST['download_id'];
+		$log_id = $_POST['log_id'];
+		$status = $_POST['log_status'];
+
+		$download = null;
+		if ( $download_id > 0 ) {
+			try {
+				$download = download_monitor()->service( 'download_repository' )->retrieve_single( $download_id );
+			} catch ( Exception $e ) {
+				wp_die( esc_html__( 'Download does not exist.', 'download-monitor' ) . ' <a href="' . esc_url( home_url() ) . '">' . esc_html__( 'Go to homepage &rarr;', 'download-monitor' ) . '</a>', esc_html__( 'Download Error', 'download-monitor' ), array( 'response' => 404 ) );
+			}
+		}
+
+		if ( ! $download ) {
+			wp_die( esc_html__( 'Download does not exist.', 'download-monitor' ) . ' <a href="' . esc_url( home_url() ) . '">' . esc_html__( 'Go to homepage &rarr;', 'download-monitor' ) . '</a>', esc_html__( 'Download Error', 'download-monitor' ), array( 'response' => 404 ) );
+		}
+
+		$version = $download->get_version();
+
+		$this->log( 'download', $status, '', $download, $version, $log_id );
+		$version->increase_download_count();
+	}
 }

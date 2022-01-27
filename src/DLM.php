@@ -163,10 +163,6 @@ class WP_DLM {
 		$post_type_manager = new DLM_Post_Type_Manager();
 		$post_type_manager->setup();
 
-		// Setup Log Filters
-		$log_filters = new DLM_Log_Filters();
-		$log_filters->setup();
-
 		// Setup actions
 		$this->setup_actions();
 
@@ -288,6 +284,15 @@ class WP_DLM {
 				DLM_VERSION
 			);
 		}
+
+		wp_enqueue_script(
+			'dlm_progress_bar',
+			plugins_url( '/assets/js/dlm-progress.js', $this->get_plugin_file() ),
+			array('jquery'),
+			DLM_VERSION, true
+		);
+
+		wp_localize_script( 'dlm_progress_bar', 'dlmProgressVar', array('ajaxUrl'=> admin_url( 'admin-ajax.php' )) );
 
 		do_action( 'dlm_frontend_scripts_after' );
 
