@@ -26,7 +26,7 @@ function handleDownloadLinkClick(e) {
 	request.responseType = 'blob';
 	request.onreadystatechange = function () {
 		let log_id = request.getResponseHeader('log_id');
-		let extension = request.getResponseHeader('extension');
+		let filename = request.getResponseHeader('filename');
 		let status =
 			request.getResponseHeader('log_status') != null
 				? request.getResponseHeader('log_status')
@@ -90,7 +90,7 @@ function handleDownloadLinkClick(e) {
 			// Set the href of the a.download-complete to the object URL
 			downloadLink.setAttribute('href', _OBJECT_URL);
 			// Set the download attribute of the a.download-complete to the file name
-			downloadLink.setAttribute('download', `${id}.${extension}`);
+			downloadLink.setAttribute('download', filename);
 			// Trigger click on a.download-complete
 			downloadLink.click();
 
@@ -133,7 +133,7 @@ function handleDownloadLinkClick(e) {
 		//Set the inner html of the progress bar to the percentage of upload completed
 		document.querySelector(
 			`.download-container-${id} .progress-bar-container .progress-bar-percent`
-		).innerHTML = percent_complete + '%';
+		).style.display = 'none';
 		// Append progress bar below the button
 	});
 	request.onerror = function () {

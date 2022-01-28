@@ -670,12 +670,11 @@ class DLM_Download_Handler {
 			exit;
 		}
 
-
 		// get extension from file path
-		$extension = pathinfo( $file_path, PATHINFO_EXTENSION );
+		$file_name = $download->get_version()->get_filename();
 		$log_id = $this->log( 'download', 'incomplete', '', $download, $version );
 		$log_id = $log_id->get_id();
-		header( "extension: $extension" );
+		header( "filename: $file_name" );
 		header( "log_id : $log_id");
 		// Redirect to the file...
 		if ( $download->is_redirect_only() || apply_filters( 'dlm_do_not_force', false, $download, $version ) ) {
