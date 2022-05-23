@@ -26,12 +26,12 @@ class DLM_Settings_Page {
 	public function add_settings_page( $links ) {
 		// Settings page
 		$links[] = array(
-				'page_title' => __( 'Settings', 'download-monitor' ),
-				'menu_title' => __( 'Settings', 'download-monitor' ),
-				'capability' => 'manage_options',
-				'menu_slug'  => 'download-monitor-settings',
-				'function'   => array( $this, 'settings_page' ),
-				'priority'   => 20,
+			'page_title' => __( 'Settings', 'download-monitor' ),
+			'menu_title' => __( 'Settings', 'download-monitor' ),
+			'capability' => 'manage_options',
+			'menu_slug'  => 'download-monitor-settings',
+			'function'   => array( $this, 'settings_page' ),
+			'priority'   => 20,
 		);
 
 		return $links;
@@ -68,12 +68,12 @@ class DLM_Settings_Page {
 
 		$screen = get_current_screen();
 
-		if( $screen->base ==  'dlm_download_page_download-monitor-settings' ) {
-			$ep_value = get_option( 'dlm_download_endpoint' );
+		if ( $screen->base == 'dlm_download_page_download-monitor-settings' ) {
+			$ep_value   = get_option( 'dlm_download_endpoint' );
 			$page_check = get_page_by_path( $ep_value );
 			$cpt_check  = post_type_exists( $ep_value );
 
-			if( $page_check || $cpt_check ) {
+			if ( $page_check || $cpt_check ) {
 				add_action( 'admin_notices', array( $this, 'display_admin_invalid_ep' ) );
 			}
 		}
@@ -111,7 +111,6 @@ class DLM_Settings_Page {
 	}
 
 
-
 	/**
 	 * settings_page function.
 	 *
@@ -147,94 +146,102 @@ class DLM_Settings_Page {
 				// loop fields for this tab
 				if ( isset( $settings[ $tab ] ) ) {
 
-						$active_section = $this->get_active_section( $settings[ $tab ]['sections'] );
+					$active_section = $this->get_active_section( $settings[ $tab ]['sections'] );
 
-						if ( count( $settings[ $tab ]['sections'] ) > 1 ) {
+					if ( count( $settings[ $tab ]['sections'] ) > 1 ) {
 
-							?>
-							<div class="wp-clearfix">
+						?>
+						<div class="wp-clearfix">
 							<ul class="subsubsub dlm-settings-sub-nav">
 								<?php foreach ( $settings[ $tab ]['sections'] as $section_key => $section ) : ?>
 									<?php echo "<li" . ( ( $active_section == $section_key ) ? " class='active-section'" : "" ) . ">"; ?>
 									<a href="<?php echo esc_url( add_query_arg( array(
-											'tab'     => $tab,
-											'section' => $section_key
+										'tab'     => $tab,
+										'section' => $section_key,
 									), DLM_Admin_Settings::get_url() ) ); ?>"><?php echo esc_html( $section['title'] ); ?></a></liM>
 								<?php endforeach; ?>
 							</ul>
-								</div><!--.wp-clearfix-->
-							<h2><?php echo esc_html( $settings[ $tab ]['sections'][ $active_section ]['title'] ); ?></h2>
-							<?php
-						}
+						</div><!--.wp-clearfix-->
 
-						//echo '<div id="settings-' . sanitize_title( $key ) . '" class="settings_panel">';
+						<?php
+					}
 
-						if ( isset( $settings[ $tab ]['sections'][ $active_section ]['fields'] ) && ! empty( $settings[ $tab ]['sections'][ $active_section ]['fields'] ) ) {
+					//echo '<div id="settings-' . sanitize_title( $key ) . '" class="settings_panel">';
 
-							// output correct settings_fields
-							// We change the output location so that it won't interfere with our upsells
-							$option_name = "dlm_" . $tab . "_" . $active_section;
-							settings_fields( $option_name );
+					if ( isset( $settings[ $tab ]['sections'][ $active_section ]['fields'] ) && ! empty( $settings[ $tab ]['sections'][ $active_section ]['fields'] ) ) {
 
-							echo '<table class="form-table">';
+						// output correct settings_fields
+						// We change the output location so that it won't interfere with our upsells
+						$option_name = "dlm_" . $tab . "_" . $active_section;
+						settings_fields( $option_name );
 
-							foreach ( $settings[ $tab ]['sections'][ $active_section ]['fields'] as $option ) {
+						echo '<div class="wpcdb-container">';
+						echo '<div class="wpcdb-card">';
 
-								$cs = 1;
 
-								if ( ! isset( $option['type'] ) ) {
-									$option['type'] = '';
+						echo '<div class="wpcdb-header">';
+						echo '<div class="wpcdb-header-text">';
+						echo '<h2>' . esc_html( $settings[ $tab ]['sections'][ $active_section ]['title'] ) . '</h2>';
+						echo '<a href="#">Learn More &rarr;</a>';
+						echo '</div><!--/.wpcdb-header--text-->';
+						echo '</div><!--/.wpcdb-header-->';
+						echo '<div class="wpcdb-content">';
+						foreach ( $settings[ $tab ]['sections'][ $active_section ]['fields'] as $option ) {
+
+
+							if ( ! isset( $option['type'] ) ) {
+								$option['type'] = '';
+							}
+
+							$tr_class = ( 'group' === $option['type'] ? 'dlm-groupped-settings' : ' wpcdb-row wpcdb-settings-row' );
+
+							echo '<div data-setting="' . ( isset( $option['name'] ) ? esc_attr( $option['name'] ) : '' ) . '" class="' . esc_attr( $tr_class ) . '">';
+							if ( isset( $option['label'] ) && '' !== $option['label'] ) {
+								echo '<div class="wpcdb-col wpcdb-col-3">';
+								echo '<label for="setting-' . esc_attr( $option['name'] ) . '">' . esc_html( $option['label'] ) . '</label>';
+								echo '</div><!--/.wpcdb-col-3-->';
+							}
+
+
+							// make new field object
+							$field = DLM_Admin_Fields_Field_Factory::make( $option );
+
+							// check if factory made a field
+							if ( null !== $field ) {
+
+								echo '<div class="wpcdb-col wpcdb-col-9">';
+								// render field
+								$field->render();
+								if ( isset( $option['desc'] ) && '' !== $option['desc'] ) {
+									echo ' <p class="dlm-description description">' . wp_kses_post( $option['desc'] ) . '</p>';
 								}
-
-								$tr_class = ( 'group' === $option['type'] ? 'dlm-groupped-settings' : '' );
-
-								echo '<tr valign="top" data-setting="' . ( isset( $option['name'] ) ? esc_attr( $option['name'] ) : '' ) . '" class="' . esc_attr( $tr_class ) . '">';
-								if ( isset( $option['label'] ) && '' !== $option['label'] ) {
-									echo '<th scope="row"><label for="setting-' . esc_attr( $option['name'] ) . '">' . esc_html( $option['label'] ) . '</label></th>';
-								} else {
-									$cs ++;
-								}
-
-								echo '<td colspan="' . esc_attr( $cs ) . '">';
-
-								// make new field object
-								$field = DLM_Admin_Fields_Field_Factory::make( $option );
-
-								// check if factory made a field
-								if ( null !== $field ) {
-									// render field
-									$field->render();
-
-									if ( isset( $option['desc'] ) && '' !== $option['desc'] ) {
-										echo ' <p class="dlm-description description">' . wp_kses_post( $option['desc'] ) . '</p>';
-									}
-								}
-
-								echo '</td></tr>';
+								echo '</div>';
 
 							}
 
-							echo '</table>';
+							echo '</div><!--/.wpcdb-settings-row-->';
+
 						}
+						echo '</div><!--/.content-->';
+						echo '</div><!--/.card-->';
+						echo '</div><!--/.container-->';
 
+					}
 
-					echo '<div class="wpchill-upsells-wrapper">';
-
-					do_action( 'dlm_tab_content_' . $tab, $settings );
-
-					echo '</div>';
 				}
 
 				?>
-				<div class="wp-clearfix"></div>
+
 				<?php
-				if ( isset( $settings[ $tab ] ) &&  ( isset( $settings[ $tab ]['sections'][ $active_section ]['fields'] ) && ! empty( $settings[ $tab ]['sections'][ $active_section ]['fields'] ) ) ) {
+				if ( isset( $settings[ $tab ] ) && ( isset( $settings[ $tab ]['sections'][ $active_section ]['fields'] ) && ! empty( $settings[ $tab ]['sections'][ $active_section ]['fields'] ) ) ) {
 
 					?>
+					<div class="wpcdb-container">
 					<p class="submit">
-						<input type="submit" class="button-primary"
-							   value="<?php echo esc_html__( 'Save Changes', 'download-monitor' ); ?>"/>
+						<input type="submit" class="wpcdb-button wpcdb-button-primary wpcdb-button-medium"
+						       value="<?php echo esc_html__( 'Save Changes', 'download-monitor' ); ?>"/>
 					</p>
+					</div>
 				<?php } ?>
 			</form>
 		</div>
@@ -244,20 +251,17 @@ class DLM_Settings_Page {
 	/**
 	 * Print global notices
 	 */
-	private
-	function print_global_notices() {
+	private function print_global_notices() {
 
 		// check for nginx
-		if ( isset( $_SERVER['SERVER_SOFTWARE'] ) &&
-			stristr( sanitize_text_field( wp_unslash($_SERVER['SERVER_SOFTWARE']) ), 'nginx' ) !== false &&
-			1 != get_option( 'dlm_hide_notice-nginx_rules', 0 ) ) {
+		if ( isset( $_SERVER['SERVER_SOFTWARE'] ) && stristr( sanitize_text_field( wp_unslash( $_SERVER['SERVER_SOFTWARE'] ) ), 'nginx' ) !== false && 1 != get_option( 'dlm_hide_notice-nginx_rules', 0 ) ) {
 
 			// get upload dir
 			$upload_dir = wp_upload_dir();
 
 			// replace document root because nginx uses path from document root
 			// phpcs:ignore
-			$upload_path = str_replace( sanitize_text_field( wp_unslash($_SERVER['DOCUMENT_ROOT']) ), '', $upload_dir['basedir'] );
+			$upload_path = str_replace( sanitize_text_field( wp_unslash( $_SERVER['DOCUMENT_ROOT'] ) ), '', $upload_dir['basedir'] );
 
 			// form nginx rules
 			$nginx_rules = "location " . $upload_path . "/dlm_uploads {<br/>deny all;<br/>return 403;<br/>}";
@@ -275,7 +279,6 @@ class DLM_Settings_Page {
 	public function load_admin_hooks() {
 
 		add_action( 'in_admin_header', array( $this, 'dlm_page_header' ) );
-
 		add_filter( 'dlm_page_header', array( $this, 'page_header_locations' ) );
 	}
 
@@ -284,27 +287,31 @@ class DLM_Settings_Page {
 	 *
 	 * @param bool $extra_class
 	 */
-	public static function dlm_page_header($extra_class = '') {
+	public static function dlm_page_header( $extra_class = '' ) {
 
 		// Only display the header on pages that belong to dlm
 		if ( ! apply_filters( 'dlm_page_header', false ) ) {
 			return;
 		}
 		?>
-		<div class="dlm-page-header <?php echo ( $extra_class ) ? esc_attr( $extra_class ) : ''; ?>">
-			<div class="dlm-header-logo">
 
-				<img src="<?php echo esc_url( DLM_URL . 'assets/images/logo.png' ); ?>" class="dlm-logo" />
-			</div>
-			<div class="dlm-header-links">
-				<a href="https://www.download-monitor.com/kb/" target="_blank" rel="noreferrer nofollow" id="get-help"
-				   class="button button-secondary"><span
-							class="dashicons dashicons-external"></span><?php esc_html_e( 'Documentation', 'download-monitor' ); ?>
-				</a>
-				<a class="button button-secondary"
-				   href="https://www.download-monitor.com/contact/" target="_blank" rel="noreferrer nofollow"><span
-							class="dashicons dashicons-email-alt"></span><?php echo esc_html__( 'Contact us for support!', 'download-monitor' ); ?>
-				</a>
+		<div class="wpcdb-page-header <?php echo ( $extra_class ) ? esc_attr( $extra_class ) : ''; ?>">
+			<div class="wpcdb-container">
+				<div class="wpcdb-header-logo">
+
+					<img src="<?php echo esc_url( DLM_URL . 'assets/images/logo.png' ); ?>" class="wpcdb-logo"/>
+				</div>
+				<div class="wpcdb-header-links">
+					<a href="https://www.download-monitor.com/kb/" target="_blank" rel="noreferrer nofollow"
+					   id="get-help"
+					   class="wpcdb-round"><span
+							class="dashicons dashicons-external"></span>
+					</a>
+					<a class="wpcdb-round"
+					   href="https://www.download-monitor.com/contact/" target="_blank" rel="noreferrer nofollow"><span
+							class="dashicons dashicons-email-alt"></span>
+					</a>
+				</div>
 			</div>
 		</div>
 		<?php
@@ -332,11 +339,11 @@ class DLM_Settings_Page {
 	/**
 	 * @param array $settings
 	 */
-	private
-	function generate_tabs( $settings ) {
+	private function generate_tabs( $settings ) {
 
 
 		?>
+		<div class="wpcdb-container">
 		<h2 class="nav-tab-wrapper">
 			<?php
 			foreach ( $settings as $key => $section ) {
@@ -348,6 +355,7 @@ class DLM_Settings_Page {
 			}
 			?>
 		</h2>
+		</div><!--/.wpcdb-container-->
 		<?php
 	}
 
@@ -358,9 +366,8 @@ class DLM_Settings_Page {
 	 *
 	 * @return string
 	 */
-	private
-	function array_first_key(
-			$a
+	private function array_first_key(
+		$a
 	) {
 		reset( $a );
 
@@ -372,9 +379,8 @@ class DLM_Settings_Page {
 	 *
 	 * @return string
 	 */
-	private
-	function get_active_tab() {
-		return ( ! empty( $_GET['tab'] ) ? sanitize_title( wp_unslash($_GET['tab']) ) : 'general' );
+	private function get_active_tab() {
+		return ( ! empty( $_GET['tab'] ) ? sanitize_title( wp_unslash( $_GET['tab'] ) ) : 'general' );
 	}
 
 	/**
@@ -384,8 +390,8 @@ class DLM_Settings_Page {
 	 *
 	 * @return string
 	 */
-	private function get_active_section( $sections) {
-		return ( ! empty( $_GET['section'] ) ? sanitize_title( wp_unslash($_GET['section']) ) : $this->array_first_key( $sections ) );
+	private function get_active_section( $sections ) {
+		return ( ! empty( $_GET['section'] ) ? sanitize_title( wp_unslash( $_GET['section'] ) ) : $this->array_first_key( $sections ) );
 	}
 
 }

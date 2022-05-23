@@ -214,7 +214,7 @@ class DLM_Admin_Settings {
 						'fields' => array(
 							array(
 								'name' => 'dlm_hash_desc',
-								'text' => sprintf( __( 'Hashes can optionally be output via shortcodes, but may cause performance issues with large files. %1$sYou can read more about hashes here%2$s', 'download-monitor' ), '<a href="https://www.download-monitor.com/kb/download-hashes/" target="_blank">', '</a>' ),
+								'text' => sprintf( __( 'Hashes can optionally be output via shortcodes, but may cause performance issues with large files. You can read more about hashes %1$shere%2$s', 'download-monitor' ), '<a href="https://www.download-monitor.com/kb/download-hashes/" target="_blank">', '</a>' ),
 								'type' => 'desc'
 							),
 							array(

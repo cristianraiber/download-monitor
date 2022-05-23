@@ -9,7 +9,7 @@ class DLM_Post_Type_Manager {
 		add_action( 'rest_api_init', array( $this, 'register_dlm_download_post_meta_rest' ) );
 		add_action( 'init', array( $this, 'register' ), 10 );
 
-		add_filter( 'views_edit-dlm_download', array( $this, 'add_extensions_tab' ), 10, 1 );
+		//add_filter( 'views_edit-dlm_download', array( $this, 'add_extensions_tab' ), 10, 1 );
 
 		add_action( 'current_screen', array( $this, 'disable_geditor'));
 	}
